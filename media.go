@@ -9,8 +9,6 @@ import (
 
 	"appengine"
 	"appengine/datastore"
-
-	"github.com/gorilla/mux"
 )
 
 var (
@@ -22,7 +20,7 @@ var (
 type Media struct {
 	Title       string    `json:"title"`
 	Description string    `json:"description"`
-	Uploader    int       `json:"uploader"`
+	Uploader    string    `json:"uploader"`
 	Date        time.Time `json:"date"`
 	Views       int       `json:"views"`
 	Articles    []int64   `json:"articles"`
@@ -32,15 +30,12 @@ type Media struct {
 }
 
 // MediaHandler handles MediaRequests
-type MediaHandler struct {
-	router *mux.Router
-}
+type MediaHandler struct{}
 
-func InitMediaHandler(router *mux.Router) *MediaHandler {
-	sub := router.PathPrefix("/media").Subrouter()
-	handler := &MediaHandler{sub}
-	handler.router.HandleFunc("/get", MediaGet)
-	handler.router.HandleFunc("/add", MediaAdd)
+func InitMediaHandler() *MediaHandler {
+	handler := &MediaHandler{}
+	http.HandleFunc("/media/get", MediaGet)
+	http.HandleFunc("/media/add", MediaAdd)
 	return handler
 }
 
@@ -135,7 +130,7 @@ func MediaAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	articles := []int64{}
-	for _, articleStr := range apiReq.URL.Query()["article"] {
+	for _, articleStr := range r.URL.Query()["article"] {
 		articleInt, articleErr := strconv.ParseInt(articleStr, 10, 64)
 		if articleErr != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -159,19 +154,20 @@ func MediaAdd(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, string(jsonMsg), http.StatusBadRequest)
 	}
-	id, _, idErr := datastore.AllocateIDs(context, ArticleKind, nil, 0)
+	id, _, idErr := datastore.AllocateIDs(context, MediaKind, nil, 0)
 	if idErr != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Println(idErr)
 		return
 	}
-	key := datastore.NewKey(context, ArticleKind, "", id, nil)
-	article.Key = key.IntID()
-	_, putErr := datastore.Put(context, key, article)
+	key := datastore.NewKey(context, MediaKind, "", id, nil)
+	media.Key = key.IntID()
+	_, putErr := datastore.Put(context, key, media)
 	if putErr != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Println(putErr)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(media)
 }

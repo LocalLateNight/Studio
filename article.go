@@ -9,8 +9,6 @@ import (
 
 	"appengine"
 	"appengine/datastore"
-
-	"github.com/gorilla/mux"
 )
 
 var (
@@ -28,17 +26,14 @@ type Article struct {
 }
 
 // ArticleHandler handles article requests
-type ArticleHandler struct {
-	router *mux.Router
-}
+type ArticleHandler struct{}
 
 // InitArticleHandler returns a new initialized instance of an
 // article handler.
-func InitArticleHandler(router *mux.Router) *ArticleHandler {
-	sub := router.PathPrefix("/article").Subrouter()
-	handler := &ArticleHandler{sub}
-	handler.router.HandleFunc("/get", ArticleGet)
-	handler.router.HandleFunc("/add", ArticleAdd)
+func InitArticleHandler() *ArticleHandler {
+	handler := &ArticleHandler{}
+	http.HandleFunc("/article/get", ArticleGet)
+	http.HandleFunc("/article/add", ArticleAdd)
 	return handler
 }
 
@@ -101,6 +96,7 @@ func ArticleAdd(w http.ResponseWriter, r *http.Request) {
 	context := appengine.NewContext(r)
 	apiReq := &APIRequest{r}
 
+	log.Println(r.URL.Query())
 	missingFields := &MissingFields{Message: missingFieldsMsg, Fields: []string{}}
 	article := &Article{}
 	article.Title = apiReq.GetParameter("title", missingFields)
@@ -108,6 +104,7 @@ func ArticleAdd(w http.ResponseWriter, r *http.Request) {
 	article.URL = apiReq.GetParameter("url", missingFields)
 
 	timestamp := apiReq.GetParameter("timestamp", missingFields)
+	log.Println(article)
 	intTime, intErr := strconv.ParseInt(timestamp, 10, 64)
 	if intErr != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
