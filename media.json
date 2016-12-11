@@ -1,0 +1,12 @@
+{
+        "bucket": "bucket-id",
+        "title": "The Demo",
+        "description": "From the same studio that brought you the talks at lunch, we bring you our demo. This is a paragraph or so. Markdown might be cool. Who knows.",
+        "uploader": "Me",
+        "date": "timestamp",
+        "location": [{"name": "detroit", "description": "Filmed in detroit"}],
+        "views": "100",
+        "ratings": {"up": 100, "down": 10},
+
+        "articles": [123, 4566]
+}
