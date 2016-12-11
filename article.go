@@ -7,6 +7,9 @@ import (
 	"strconv"
 	"time"
 
+	"appengine"
+	"appengine/datastore"
+
 	"github.com/gorilla/mux"
 )
 
@@ -36,7 +39,6 @@ func InitArticleHandler(router *mux.Router) *ArticleHandler {
 	handler := &ArticleHandler{sub}
 	handler.router.HandleFunc("/get", ArticleGet)
 	handler.router.HandleFunc("/add", ArticleAdd)
-	handler.router.HandleFunc("/edit", ArticleEdit)
 	return handler
 }
 
@@ -69,13 +71,13 @@ func ArticleGet(w http.ResponseWriter, r *http.Request) {
 		for key, value := range r.URL.Query() {
 			switch key {
 			case "title":
-				query = query.Filter("Title =", value)
+				query = query.Filter("Title =", value[0])
 			case "description":
-				query = query.Filter("Description =", value)
+				query = query.Filter("Description =", value[0])
 			case "url":
-				query = query.Filter("URL =", value)
+				query = query.Filter("URL =", value[0])
 			case "limit":
-				limitVal, limitErr := strconv.Atoi(value)
+				limitVal, limitErr := strconv.Atoi(value[0])
 				if limitErr != nil {
 					log.Println(limitErr)
 					continue
@@ -90,6 +92,54 @@ func ArticleGet(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(article)
 	}
+}
+
+func ArticleAdd(w http.ResponseWriter, r *http.Request) {
+	context := appengine.NewContext(r)
+	apiReq := &APIRequest{r}
+
+	missingFields := &MissingFields{Message: missingFieldsMsg, Fields: []string{}}
+	article := &Article{}
+	article.Title = apiReq.GetParameter("title", missingFields)
+	article.Description = apiReq.GetParameter("description", missingFields)
+	article.URL = apiReq.GetParameter("url", missingFields)
+
+	timestamp := apiReq.GetParameter("timestamp", missingFields)
+	intTime, intErr := strconv.ParseInt(timestamp, 10, 64)
+	if intErr != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Println(intErr)
+		return
+	}
+	article.Time = time.Unix(intTime, 0)
+
+	if len(missingFields.Fields) > 0 {
+		jsonMsg, jsonErr := json.Marshal(missingFields)
+		if jsonErr != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			log.Println(intErr)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		http.Error(w, string(jsonMsg), http.StatusBadRequest)
+	}
+	id, _, idErr := datastore.AllocateIDs(context, ArticleKind, nil, 0)
+	if idErr != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Println(idErr)
+		return
+	}
+	key := datastore.NewKey(context, ArticleKind, "", id, nil)
+	article.Key = key.IntID()
+	_, putErr := datastore.Put(context, key, article)
+	if putErr != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Println(putErr)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(article)
 }
