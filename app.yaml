@@ -1,8 +1,6 @@
-application: studio
-version: 1
+service: studio
 runtime: go
 api_version: go1
-
 handlers:
         - url: /.*
           script: _go_app

@@ -123,7 +123,7 @@ func ArticleAdd(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, string(jsonMsg), http.StatusBadRequest)
 	}
-	id, _, idErr := datastore.AllocateIDs(context, ArticleKind, nil, 0)
+	id, _, idErr := datastore.AllocateIDs(context, ArticleKind, nil, 1)
 	if idErr != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Println(idErr)
@@ -137,6 +137,7 @@ func ArticleAdd(w http.ResponseWriter, r *http.Request) {
 		log.Println(putErr)
 		return
 	}
+	log.Println(key)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(article)
 }
